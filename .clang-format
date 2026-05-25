@@ -1,0 +1,15 @@
+BasedOnStyle: Google
+Language: Cpp
+
+# Indentation
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4
+
+# Line length
+ColumnLimit: 80
+
+# CUDA files
+IncludeBlocks: Regroup
+IncludeIsMainRegex: ".*"
