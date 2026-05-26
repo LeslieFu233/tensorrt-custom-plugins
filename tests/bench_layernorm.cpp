@@ -8,6 +8,8 @@
 #include <chrono>
 #include "layernorm/layernorm.h"
 #include "utils/vector_check.h"
+#include "utils/table_builder.h"
+
 using namespace tensorrt_custom_plugins;
 
 // ============================================================================
@@ -15,26 +17,23 @@ using namespace tensorrt_custom_plugins;
 // ============================================================================
 int main() {
     std::vector<int> block_sizes = {32,64,128,256,512,1024};
-    const int avg_times = 20;
+    const int avg_times = 200;
     const float eps = 1e-5f;
-    const int B = 64;
-    const int T = 10000;
+    const int B = 32;
+    const int T = 5000;
     const int C = 768;
     constexpr int T_N = B * T;
     constexpr int N = B * T * C;
     std::mt19937 rng(42);
     std::normal_distribution<float> dist(0.0f, 1.0f);
 
-    std::printf("%-24s %8s %10s %10s %10s %6s\n", "Shape", "Elements", "Time(ms)",
-                "BW(GB/s)", "TFlops", "Max MSE Error");
-    std::printf("%s\n", std::string(80, '-').c_str());
-    
     std::vector<float> h_input(N);
     std::vector<float> h_gamma(C);
     std::vector<float> h_beta(C);
     std::vector<float> h_output(N);
     std::vector<float> h_mean(T_N);
     std::vector<float> h_rstd(T_N);
+
     float *d_input, *d_gamma, *d_beta, *d_output, *d_mean, *d_rstd;
     CUDA_CHECK(cudaMalloc(&d_input, N * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&d_gamma, C * sizeof(float)));
@@ -44,6 +43,11 @@ int main() {
     CUDA_CHECK(cudaMalloc(&d_rstd, T_N * sizeof(float)));
 
     float cpu_time = 0.0f;
+
+    std::vector<layernorm::BenchmarkData> data(block_sizes.size());
+    TableBuilder table_builder;
+    table_builder.columns({"Config", "Block Size","Elements", "Time(ms)", "BW(GB/s)", "TFLOPS", "Max MSE Error"});
+
     for (const int block_size : block_sizes) {
         for (int i = 0; i < N; ++i) {
             h_input[i] = dist(rng);
@@ -52,7 +56,6 @@ int main() {
             h_gamma[i] = dist(rng);
             h_beta[i] = dist(rng);
         }
-        std::printf("block_size = %d\n", block_size);
 
         CUDA_CHECK(cudaMemcpy(d_input, h_input.data(), N * sizeof(float),
                               cudaMemcpyHostToDevice));
@@ -64,7 +67,7 @@ int main() {
                            h_beta.data(), h_output.data(), h_mean.data(),
                            h_rstd.data(), B, T, C, eps);
         float avg_ms = 0.0f;
-        for(int i=0;i<20;i++)
+        for(int i=0;i<avg_times;i++)
         {
             cudaEvent_t start, stop;
             CUDA_CHECK(cudaEventCreate(&start));
@@ -83,7 +86,7 @@ int main() {
             avg_ms += ms;
         }
         // Timing
-        avg_ms = avg_ms/20;
+        avg_ms = avg_ms/avg_times;
         // Bandwidth: read input + read gamma + read beta + write output = (N +
         // C + C + N) * 4 bytes
         float bytes = static_cast<float>((2 * N + 2 * C) * sizeof(float));
@@ -105,12 +108,13 @@ int main() {
                               cudaMemcpyDeviceToHost));
         float max_error =
             utils::max_mse_vector_error<float>(h_output, h_output_copy);
-        char label[32];
-        std::snprintf(label, sizeof(label), "B=%d T=%d, C=%d T", B, T, C);
-        std::printf("%-24s %8d %10.4f %10.2f %10.4f %6.4f\n", label, N, avg_ms, bw_gb_s,
-                    tflops, max_error);
+        
+        table_builder.row("B="+std::to_string(B)+",T="+std::to_string(T)+",C="+std::to_string(C)
+        , block_size, B*T*C, avg_ms, bw_gb_s, tflops, max_error);
         
     }
+    table_builder.print();
+    
     CUDA_CHECK(cudaFree(d_input));
     CUDA_CHECK(cudaFree(d_gamma));
     CUDA_CHECK(cudaFree(d_beta));

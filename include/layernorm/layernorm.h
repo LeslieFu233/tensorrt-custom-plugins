@@ -40,6 +40,16 @@ void forward
     int block_size=128
 );
 
+struct BenchmarkData {
+    std::string model_config;
+    int block_size;
+    int elements;
+    double time_ms;
+    double bandwidth_gbs;
+    double gflops;
+    double max_mse_error;
+};
+
 } // namespace layernorm
 } // namespace tensorrt_custom_plugins
 

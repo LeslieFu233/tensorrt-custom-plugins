@@ -17,5 +17,5 @@ target_link_libraries(bench_layernorm PRIVATE
     tensorrt_custom_plugins_headers
     ${CUDA_LIBRARIES}
     CUDA::cudart
-    layernorm_plugin
+    layernorm_tensorrt_plugin
 )
