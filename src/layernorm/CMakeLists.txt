@@ -1,16 +1,16 @@
 add_library(layernorm_tensorrt_plugin SHARED
+    layernorm_plugin.cpp
     layernorm_kernel.cu
 )
 
 target_include_directories(layernorm_tensorrt_plugin PRIVATE
-    # ${TENSORRT_INCLUDE_DIR}
+    ${TensorRT_INCLUDE_DIRS}
     ${CUDA_INCLUDE_DIRS}
 )
 
 target_link_libraries(layernorm_tensorrt_plugin PRIVATE
     tensorrt_custom_plugins_headers
-    # ${NVINFER_LIB}
-    # ${NVINFER_PLUGIN_LIB}
+    ${TensorRT_LIBRARIES}
     ${CUDA_LIBRARIES}
     cudart
 )

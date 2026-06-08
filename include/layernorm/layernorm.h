@@ -10,6 +10,7 @@ enum Version
 {
     CPU = 0,
     NAIVE,
+    SHARED_MEMORY,
 };
 
 /// @brief 
